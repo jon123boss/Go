@@ -1,4 +1,5 @@
 import pygame
+import time
 
 pygame.init()
 
@@ -15,6 +16,9 @@ CELL_SIZE = 30
 
 board = [[0 for _ in range(BOARD_SIZE)] for _ in range(BOARD_SIZE)]
 current_player = 1
+previous_boards = []
+turn_timer = 30  # 30 seconds per turn
+start_time = time.time()
 
 def draw_board():
     screen.fill(BOARD_COLOR)
@@ -26,14 +30,43 @@ def draw_board():
             elif board[x][y] == 2:
                 pygame.draw.circle(screen, WHITE, (x * CELL_SIZE + CELL_SIZE // 2, y * CELL_SIZE + CELL_SIZE // 2), CELL_SIZE // 2 - 2)
 
+def draw_timer():
+    global start_time, turn_timer
+
+    elapsed_time = time.time() - start_time
+    remaining_time = max(0, turn_timer - elapsed_time)
+
+    font = pygame.font.Font(None, 36)
+    timer_surface = font.render(f"Time Left: {int(remaining_time)}s", True, BLACK)
+    screen.blit(timer_surface, (10, 10))
+
+    if remaining_time <= 0:
+        switch_player()
+
 def handle_input(position):
-    global current_player
+    global current_player, start_time
     x, y = position
     grid_x = x // CELL_SIZE
     grid_y = y // CELL_SIZE
     if 0 <= grid_x < BOARD_SIZE and 0 <= grid_y < BOARD_SIZE and board[grid_x][grid_y] == 0:
+        save_board_state()
         board[grid_x][grid_y] = current_player
         check_and_remove_captured_stones(current_player)
+        switch_player()
+
+def switch_player():
+    global current_player, start_time
+    current_player = 2 if current_player == 1 else 1
+    start_time = time.time()
+
+def save_board_state():
+    global previous_boards
+    previous_boards.append([row[:] for row in board])
+
+def undo_move():
+    global previous_boards, current_player
+    if previous_boards:
+        board[:] = previous_boards.pop()
         current_player = 2 if current_player == 1 else 1
 
 def get_neighbors(x, y):
@@ -91,8 +124,11 @@ while running:
             running = False
         elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             handle_input(event.pos)
+        elif event.type == pygame.KEYDOWN and event.key == pygame.K_u:
+            undo_move()
 
     draw_board()
+    draw_timer()
 
     pygame.display.flip()
 
