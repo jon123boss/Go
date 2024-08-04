@@ -15,7 +15,6 @@ CELL_SIZE = 30
 
 board = [[0 for _ in range(BOARD_SIZE)] for _ in range(BOARD_SIZE)]
 current_player = 1
-captured_stones = [0, 0]
 
 def draw_board():
     screen.fill(BOARD_COLOR)
@@ -28,66 +27,61 @@ def draw_board():
                 pygame.draw.circle(screen, WHITE, (x * CELL_SIZE + CELL_SIZE // 2, y * CELL_SIZE + CELL_SIZE // 2), CELL_SIZE // 2 - 2)
 
 def handle_input(position):
-    global current_player, captured_stones
+    global current_player
     x, y = position
     grid_x = x // CELL_SIZE
     grid_y = y // CELL_SIZE
     if 0 <= grid_x < BOARD_SIZE and 0 <= grid_y < BOARD_SIZE and board[grid_x][grid_y] == 0:
-        if is_legal_move(grid_x, grid_y, current_player):
-            board[grid_x][grid_y] = current_player
-            captured = capture_stones(grid_x, grid_y, current_player)
-            captured_stones[current_player - 1] += captured
-            current_player = 2 if current_player == 1 else 1
+        board[grid_x][grid_y] = current_player
+        check_and_remove_captured_stones(current_player)
+        current_player = 2 if current_player == 1 else 1
 
-def is_legal_move(x, y, player):
+def get_neighbors(x, y):
+    neighbors = []
+    if x > 0:
+        neighbors.append((x-1, y))
+    if x < BOARD_SIZE - 1:
+        neighbors.append((x+1, y))
+    if y > 0:
+        neighbors.append((x, y-1))
+    if y < BOARD_SIZE - 1:
+        neighbors.append((x, y+1))
+    return neighbors
 
-    if is_suicide(x, y, player):
-        return False
-    return True
-
-def capture_stones(x, y, player):
-    opponent = 2 if player == 1 else 1
-    captured = 0
-    for dx, dy in [(0, 1), (0, -1), (1, 0), (-1, 0)]:
-        new_x, new_y = x + dx, y + dy
-        if 0 <= new_x < BOARD_SIZE and 0 <= new_y < BOARD_SIZE and board[new_x][new_y] == opponent:
-            if not has_liberty(new_x, new_y, opponent):
-                captured += remove_group(new_x, new_y, opponent)
-    return captured
-
-def has_liberty(x, y, player):
-    visited = set()
+def find_group(x, y, player):
+    group = [(x, y)]
     queue = [(x, y)]
+    visited = set(group)
+
     while queue:
-        x, y = queue.pop(0)
-        if (x, y) in visited:
-            continue
-        visited.add((x, y))
-        if board[x][y] == 0:
-            return True
-        for dx, dy in [(0, 1), (0, -1), (1, 0), (-1, 0)]:
-            new_x, new_y = x + dx, y + dy
-            if 0 <= new_x < BOARD_SIZE and 0 <= new_y < BOARD_SIZE and board[new_x][new_y] == player:
-                queue.append((new_x, new_y))
+        cx, cy = queue.pop(0)
+        for nx, ny in get_neighbors(cx, cy):
+            if (nx, ny) not in visited and board[nx][ny] == player:
+                visited.add((nx, ny))
+                group.append((nx, ny))
+                queue.append((nx, ny))
+    return group
+
+def has_liberty(group):
+    for x, y in group:
+        for nx, ny in get_neighbors(x, y):
+            if board[nx][ny] == 0:
+                return True
     return False
 
-def remove_group(x, y, player):
-    visited = set()
-    queue = [(x, y)]
-    captured = 0
-    while queue:
-        x, y = queue.pop(0)
-        if (x, y) in visited:
-            continue
-        visited.add((x, y))
-        if board[x][y] == player:
-            board[x][y] = 0
-            captured += 1
-        for dx, dy in [(0, 1), (0, -1), (1, 0), (-1, 0)]:
-            new_x, new_y = x + dx, y + dy
-            if 0 <= new_x < BOARD_SIZE and 0 <= new_y < BOARD_SIZE and board[new_x][new_y] == player:
-                queue.append((new_x, new_y))
-    return captured
+def check_and_remove_captured_stones(player):
+    opponent = 2 if player == 1 else 1
+    to_remove = []
+
+    for x in range(BOARD_SIZE):
+        for y in range(BOARD_SIZE):
+            if board[x][y] == opponent:
+                group = find_group(x, y, opponent)
+                if not has_liberty(group):
+                    to_remove.extend(group)
+
+    for x, y in to_remove:
+        board[x][y] = 0
 
 running = True
 while running:
