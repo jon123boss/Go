@@ -17,7 +17,7 @@ CELL_SIZE = 30
 board = [[0 for _ in range(BOARD_SIZE)] for _ in range(BOARD_SIZE)]
 current_player = 1
 previous_boards = []
-turn_timer = 30  # 30 seconds per turn
+turn_timer = 30
 start_time = time.time()
 
 def draw_board():
@@ -30,6 +30,24 @@ def draw_board():
             elif board[x][y] == 2:
                 pygame.draw.circle(screen, WHITE, (x * CELL_SIZE + CELL_SIZE // 2, y * CELL_SIZE + CELL_SIZE // 2), CELL_SIZE // 2 - 2)
 
+
+def display_death_screen():
+    font = pygame.font.Font(None, 72)
+    if current_player == 1:
+        winner_text = "White Wins!"
+    else:
+        winner_text = "Black Wins!"
+
+    winner_surface = font.render(winner_text, True, BLACK)
+    restart_surface = font.render("Click 'r' to start", True, BLACK)
+
+    winner_rect = winner_surface.get_rect(center=(WINDOW_SIZE[0] // 2, WINDOW_SIZE[1] // 2 - 50))
+    restart_rect = restart_surface.get_rect(center=(WINDOW_SIZE[0] // 2, WINDOW_SIZE[1] // 2 + 50))
+
+    screen.fill(BOARD_COLOR)
+    screen.blit(winner_surface, winner_rect)
+    screen.blit(restart_surface, restart_rect)
+    pygame.display.flip()
 def draw_timer():
     global start_time, turn_timer
 
@@ -118,7 +136,6 @@ def check_and_remove_captured_stones(player):
 
 running = True
 while running:
-
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
@@ -126,9 +143,18 @@ while running:
             handle_input(event.pos)
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_u:
             undo_move()
+        elif event.type == pygame.KEYDOWN and event.key == pygame.K_r:
+            board = [[0 for _ in range(BOARD_SIZE)] for _ in range(BOARD_SIZE)]
+            current_player = 1
+            previous_boards = []
+            start_time = time.time()
 
     draw_board()
     draw_timer()
+
+    if len(previous_boards) >= BOARD_SIZE * BOARD_SIZE:
+        display_death_screen()
+        continue
 
     pygame.display.flip()
 
